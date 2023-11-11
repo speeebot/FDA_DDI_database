@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {%if messages %}
+      {% for category, msg in messages%}
+          <div class="alert alert-{{category}}">
+            <button type="button" class="m1-2 mb-1 close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+            {{msg}}
+            </div>
+      {% endfor %}
+    {% endif %} 
+  {% endwith  %}
+
+  <div class="position-relative overflow-hidden p-3 p-md-5 m-md-3 text-center bg-dark" style="color:white">
+
+    
+        <h1 class="display-1 font-weight-bold mt-4" style="color:white;">FDA DDI </h1>
+        <div class="container">
+            <div class="row">
+
+                <div class="col-md-6 text-right">
+                    <form class="form-register" style="color: antiquewhite" method="post">
+                        <input class="form-control form-control-lg" placeholder="Drug" name="drug" />
+                    </form>
+                </div>
+
+                <div class="col-md-6 text-right">
+                    <form class="form-register" style="color: antiquewhite" method="post">
+                        <input class="form-control form-control-lg" placeholder="Drug" name="drug" />
+                    </form>
+                </div>
+    
+            </div>
+                <input type="submit" name="submit" value="Submit" class="btn btn-outline btn-primary mt-4">
+        </div>
+
+</div>
+
+ 
+{% endblock %}
