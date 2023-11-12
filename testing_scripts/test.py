@@ -2,7 +2,8 @@ import requests
 import json
 
 # basic fetch of api
-url = 'https://api.fda.gov/drug/drugsfda.json?limit=1'
+url = 'https://api.fda.gov/drug/drugsfda.json?search=openfda.brand_name:"Advil+Addaprin"'
+
 
 # https://open.fda.gov/apis/drug/drugsfda/example-api-queries/
 
