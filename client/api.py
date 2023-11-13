@@ -1,5 +1,4 @@
 import requests
-import time
 import urllib.parse
 import pandas as pd
 from mlxtend.frequent_patterns import apriori, association_rules
@@ -129,8 +128,10 @@ frequent_itemsets = apriori(df, min_support=0.2, use_colnames=True)
 rules = association_rules(frequent_itemsets, metric="lift", min_threshold=.2)
 print("ASSOCIATION RULES:")
 print(rules)
+
 # Filter for rules where the consequence is AKI
 aki_rules = rules[rules['consequents'] == {'AKI'}].copy()
+
 # The total number of reports with AKI
 aki_reports_count = sum(1 for transaction in transactions if 'AKI' in transaction)
 
@@ -157,7 +158,7 @@ lift_drug_a = rule_drug_a['lift'].values[0]  # Get the lift value
 ddi_indices = {}
 
 # Iterate over the rules to find combinations of Drug A with other drugs
-for index, rule in rules.iterrows():
+for index, rule in aki_rules_sorted.iterrows():
     if drug in rule['antecedents'] and len(rule['antecedents']) > 1:
         # Calculate the DDI index
         lift_combination = rule['lift']
