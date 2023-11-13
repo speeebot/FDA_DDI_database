@@ -6,10 +6,8 @@
     {%if messages %}
       {% for category, msg in messages%}
           <div class="alert alert-{{category}}">
-            <button type="button" class="m1-2 mb-1 close" data-dismiss="alert" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-            {{msg}}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <strong>{{msg}}</strong>
             </div>
       {% endfor %}
     {% endif %} 
@@ -23,8 +21,8 @@
             <div class="row">
                 <div class="col">
                     <form class="form-register" style="color: antiquewhite" method="post">
-                        <input class="form-control form-control-lg mt-4" placeholder="Drug" name="input_1" />
-                        <input class="form-control form-control-lg mt-4" placeholder="Drug" name="input_2" />
+                        <input class="form-control form-control-lg mt-4" placeholder="Drug" name="drug_input" />
+                        <input class="form-control form-control-lg mt-4" placeholder="Adverse reaction" name="reaction_input" />
                         <input type="submit" name="submit" value="Submit" class="btn btn-outline btn-primary mt-4">
                     </form>
                 </div>

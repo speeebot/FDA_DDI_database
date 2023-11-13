@@ -8,13 +8,13 @@ app.secret_key = "admin" # look into proper secret key practices if ever deplyin
 def home_page():
     if request.method == 'POST':
         try:
-            # process the info here, fetch fda api ...
-            session["input_1"] = str(request.form['input_1'])
-            session["input_2"] = str(request.form['input_2'])            
+            session["drug_input"] = str(request.form['drug_input'])
+            session["reaction_input"] = str(request.form['reaction_input']) 
             return redirect(url_for('results_page'))
+        
         except:
-            # re-route to home page if something went wrong, display error message
-            flash('Some error message!', 'danger')
+            # re-route to home page if something went wrong
+            flash('Something went wrong', 'danger')
             return redirect(url_for('home_page'))
 
     return render_template('home.html')
@@ -22,7 +22,16 @@ def home_page():
 
 @app.route('/results', methods=['POST', 'GET'])     # results root
 def results_page():
-    return render_template('results.html')
+    # session["drug_input"]
+    # session["reaction_input"]
+    # ^^ use session variables to create the ddi results with api.py functions
+
+    # mock data
+    ddi_results = [['Advil', "Headache", "0.12"], ['Advil', "Headache", "0.12"], ['Advil', "Headache", "0.12"], ['Advil', "Headache", "0.12"],
+                 ['Advil', "Headache", "0.12"], ['Advil', "Headache", "0.12"], ['Advil', "Headache", "0.12"], ['Advil', "Headache", "0.12"],
+                 ['vancomycin', "Acute Kidney Injury", "1.2"], ['vancomycin', "Acute Kidney Injury", "1.2"], ['vancomycin', "Acute Kidney Injury", "1.2"], ['vancomycin', "Acute Kidney Injury", "1.2"], 
+                 ['vancomycin', "Acute Kidney Injury", "1.2"], ['vancomycin', "Acute Kidney Injury", "1.2"], ['vancomycin', "Acute Kidney Injury", "1.2"], ['vancomycin', "Acute Kidney Injury", "1.2"]]    
+    return render_template('results.html', ddi_results = ddi_results)
 
 
 if __name__ == '__main__':
