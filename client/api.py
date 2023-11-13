@@ -18,7 +18,8 @@ def calculate_ror(a, b, c, d):
     """
     print(f"a: {a}, b: {b}, c: {c}, d: {d}")
     # Make sure to handle the case where b, c or d is zero to avoid division by zero
-    ror = (c / d) / (a / b) if b != 0 and d != 0 and a != 0 else float('inf')
+    #ror = (c / d) / (a / b) if b != 0 and d != 0 and a != 0 else float('inf')
+    ror = (b * c) / (a * d) if a != 0 and d != 0 else float('inf')
     return ror
 
 def get_ror_values(aki_rules, df):
@@ -132,9 +133,6 @@ print(rules)
 # Filter for rules where the consequence is AKI
 aki_rules = rules[rules['consequents'] == {'AKI'}].copy()
 
-# The total number of reports with AKI
-aki_reports_count = sum(1 for transaction in transactions if 'AKI' in transaction)
-
 # Add ROR values to the aki_rules
 aki_rules_ror = get_ror_values(aki_rules, df)
 
@@ -166,6 +164,11 @@ for index, rule in aki_rules_sorted.iterrows():
         # Store the DDI index with the drug combination as key
         ddi_indices[frozenset(rule['antecedents'])] = ddi_index
 
+# The total number of reports with AKI
+aki_reports_count = sum(1 for transaction in transactions if 'AKI' in transaction)
+
 # Now `ddi_indices` contains the DDI index for each drug combination with Drug A
 for index in ddi_indices.items():
     print(index)
+
+print(f"Number of AKI cases: {aki_reports_count}")
