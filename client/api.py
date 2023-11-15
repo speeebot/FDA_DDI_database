@@ -1,174 +1,232 @@
 import requests
-import urllib.parse
 import pandas as pd
 from mlxtend.frequent_patterns import apriori, association_rules
 from mlxtend.preprocessing import TransactionEncoder
+from data_handling import fetch_data, load_data
 
-drug = 'narcan'
+import constants
 
-def calculate_ror(a, b, c, d):
-    """
-    Calculate the Reporting Odds Ratio (ROR).
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 150)
+
+# Function to fetch adverse events with AKI from openFDA with pagination
+def fetch_adverse_events_with_aki(drug_name):
+    # Parameters
+    results = []
+    skip = 0  # Used for pagination
+    total_limit = None  # Set this to None or a large number if you want to get all records.
+    limit_per_request = 1000  # The maximum allowed by openFDA per request is 1000.
+
+    # Define the search query to include AKI
+    search_query = f'patient.drug.medicinalproduct:"{drug_name}" AND patient.reaction.reactionmeddrapt.exact:"acute kidney injury"'
+
+    while True:
+        params = {
+            'search': search_query,
+            'limit': limit_per_request,
+            'skip': skip
+        }
+        try:
+            response = requests.get(constants.OPENFDA_API_ENDPOINT, params=params)
+            response.raise_for_status()
+            batch_results = response.json()['results']
+            results.extend(batch_results)
+            skip += limit_per_request
+            print(f"Pagination step (AKI present): {skip}")
+
+            # Check if the last page has been reached or if a total limit has been set and reached
+            if len(batch_results) < limit_per_request or (total_limit and skip >= total_limit):
+                break
+
+        except requests.HTTPError as http_err:
+            print(f"HTTP error occurred: {http_err}")
+            break
+        except Exception as err:
+            print(f"An error occurred: {err}")
+            break
+
+    return results
+
+def fetch_adverse_events_without_aki(drug_name):
+    # Parameters
+    results = []
+    skip = 0  # Used for pagination
+    total_limit = None  # Set this to None or a large number if you want to get all records.
+    limit_per_request = 1000  # The maximum allowed by openFDA per request is 1000.
+
+    # Adjust the search query to exclude AKI
+    search_query = f'patient.drug.medicinalproduct:"{drug_name}" NOT patient.reaction.reactionmeddrapt.exact:"acute kidney injury"'
+
+    while True:
+        params = {
+            'search': search_query,
+            'limit': limit_per_request,
+            'skip': skip
+        }
+        try:
+            response = requests.get(constants.OPENFDA_API_ENDPOINT, params=params)
+            response.raise_for_status()
+            batch_results = response.json()['results']
+            results.extend(batch_results)
+            skip += limit_per_request
+            print(f"Pagination step (AKI not present): {skip}")
+            
+            # Check if the last page has been reached
+            if len(batch_results) < limit_per_request or (total_limit and skip >= total_limit):
+                break
+
+        except requests.HTTPError as http_err:
+            print(f"HTTP error occurred: {http_err}")
+            break
+        except Exception as err:
+            print(f"An error occurred: {err}")
+            break
+
+    return results
+
+# Function to analyze the number of AKI cases
+def analyze_aki_cases(data, drug_name):
+    # Initialize counts
+    aki_cases = 0
+    non_aki_cases = 0
     
-    :param a: The number of cases with both the drug and AKI.
-    :param b: The number of cases with the drug and without AKI.
-    :param c: The number of cases without the drug and with AKI.
-    :param d: The number of cases without the drug and without AKI.
-    :return: The ROR value.
-    """
-    print(f"a: {a}, b: {b}, c: {c}, d: {d}")
-    # Make sure to handle the case where b, c or d is zero to avoid division by zero
-    #ror = (c / d) / (a / b) if b != 0 and d != 0 and a != 0 else float('inf')
-    ror = (b * c) / (a * d) if a != 0 and d != 0 else float('inf')
-    return ror
-
-def get_ror_values(aki_rules, df):
-    for index, rule in aki_rules.iterrows():
-        antecedents = rule['antecedents']
-        
-        # Calculate the contingency table values
-        a = rule['support']
-        b = df[list(antecedents)].all(axis=1).sum() - a
-        c = df['AKI'].sum() - a
-        d = len(df) - (a + b + c)
-        
-        # Calculate ROR
-        ror = calculate_ror(a, b, c, d)
-        
-        # Add the ROR to the rule in the DataFrame
-        aki_rules.loc[index, 'ROR'] = ror
-
-        return aki_rules
-
-def get_transactions(drug: str):
-    # Empty list to store all transactions
-    all_transactions = []
-
-    # Payload parameters
-    base_url = "https://api.fda.gov/drug/event.json?"
-    limit = 100
-
-    payload = {
-        'search': f"patient.drug.medicinalproduct:{drug}+AND+patient.reaction.reactionmeddrapt:acute kidney injury",
-        'limit': limit,
-        'skip': ""
-    }
-
-    payload_str = urllib.parse.urlencode(payload, safe=':+')
-    response = requests.get(base_url, params=payload_str)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Parse the response JSON
-        data = response.json()
-        
-        # Process each result (each report)
-        for result in data.get('results', []):
-            # Initialize a transaction for this report
-            transaction = []
+    # Extract relevant information
+    for event in data:
+        reactions = [reaction['reactionmeddrapt'].lower() for reaction in event['patient']['reaction']]
+        if 'acute kidney injury' in reactions:
+            aki_cases += 1
+        else:
+            non_aki_cases += 1
             
-            # Add the drug names to the transaction
-            for drug in result['patient']['drug']:
-                transaction.append(drug['medicinalproduct'].lower())
-            
-            # Add 'AKI' if acute kidney injury is reported
-            for reaction in result['patient']['reaction']:
-                if 'acute kidney injury' in reaction['reactionmeddrapt'].lower():
-                    transaction.append('AKI')
-                    break
-            
-            # Add the transaction to the list
-            all_transactions.append(transaction)
+    return aki_cases, non_aki_cases
 
-        return all_transactions
-    else:
-        print(f"Failed to retrieve data: {response.status_code}")
-        return 0
+# Function to create transactions with and without AKI
+def create_transactions(data, drug_of_interest):
+    transactions_with_aki = []
+    transactions_without_aki = []
 
-# Count the drugs with and without AKI in each transaction
-def get_drug_counts(all_transactions):    
-    drug_counts = {}
-    # Process the transactions to get the drug counts
-    for transaction in all_transactions:
-        has_aki = 'AKI' in transaction
-        
-        # Iterate through each drug in the transaction
-        for drug in transaction:
-            if drug == 'AKI':
-                continue  # Skip the AKI label itself
-            
-            # Initialize the drug entry if not already present
-            if drug not in drug_counts:
-                drug_counts[drug] = {'with_aki': 0, 'without_aki': 0}
-            
-            # Increment the count based on presence of AKI in the transaction
-            if has_aki:
-                drug_counts[drug]['with_aki'] += 1
+    for event in data:
+        transaction = set(event['drugs'])
+        if drug_of_interest.lower() in transaction:
+            if event['aki_report']:
+                transactions_with_aki.append(transaction)
             else:
-                drug_counts[drug]['without_aki'] += 1
+                transactions_without_aki.append(transaction)
 
-    # Now, drug_counts contains the number of times each drug was reported with and without AKI
-    return drug_counts
+    return transactions_with_aki, transactions_without_aki
+# Function to apply the association rule mining
+def association_rule_mining(transactions):
+    
+    # Initialize the TransactionEncoder
+    te = TransactionEncoder()
+    te_ary = te.fit(transactions).transform(transactions)
+    df = pd.DataFrame(te_ary, columns=te.columns_)
 
-# Returns a list of transactions for association rule mining
-transactions = get_transactions(drug)
+    # Apply the Apriori algorithm to get frequent itemsets
+    frequent_itemsets = apriori(df, min_support=0.01, use_colnames=True)
 
-# drug_counts contains the number of times each drug was reported with and without AKI
-drug_counts = get_drug_counts(transactions)
+    print("DEBUG Frequent itemsets:", frequent_itemsets.head())
 
-# Step 3: Association Rule Mining
-# Convert the dataset into a one-hot encoded DataFrame
-te = TransactionEncoder()
-te_ary = te.fit(transactions).transform(transactions)
-df = pd.DataFrame(te_ary, columns=te.columns_)
+    if frequent_itemsets.empty:
+        print('No frequent itemsets found. You may need to lower the min_support.')
+        return pd.DataFrame()
 
-# Apply Apriori algorithm to find frequent itemsets
-frequent_itemsets = apriori(df, min_support=0.2, use_colnames=True)
+    # Generate the rules with their corresponding support, confidence, and lift
+    rules = association_rules(frequent_itemsets, metric='lift', min_threshold=1)
 
-# Generate association rules
-rules = association_rules(frequent_itemsets, metric="lift", min_threshold=.2)
-print("ASSOCIATION RULES:")
-print(rules)
+    print("DEBUG Generated rules:", rules.head())
 
-# Filter for rules where the consequence is AKI
-aki_rules = rules[rules['consequents'] == {'AKI'}].copy()
+    return rules
 
-# Add ROR values to the aki_rules
-aki_rules_ror = get_ror_values(aki_rules, df)
+# Function to extract DDI index from association rules for meaningful drug-drug interactions
+def extract_ddi_index(association_rules):
+    ddi_index_list = []
+    for _, rule in association_rules.iterrows():
+        if 'acute kidney injury' not in rule['antecedents']:
+            ddi_index_list.append({
+                'drug_combination': ', '.join(sorted(rule['antecedents'])),
+                'ddi_index': rule['lift'],
+                'confidence': rule['confidence'],
+                'support': rule['support']
+            })
+    return ddi_index_list
 
-# Sort the rules by the lift and ROR
-aki_rules_sorted = aki_rules_ror.sort_values(by=['lift', 'ROR'], ascending=[False, False])
+# Function to calculate Reporting Odds Ratio (ROR)
+def calculate_ror(aki_cases, non_aki_cases):
+    if non_aki_cases == 0:  # Prevent division by zero
+        return float('inf')
+    return (aki_cases / (aki_cases + non_aki_cases)) / (non_aki_cases / (aki_cases + non_aki_cases))
 
-# Output the results
-# Gives a DataFrame with each rule and its metrics
-print("AKI_RULES_SORTED:")
-print(aki_rules_sorted[['antecedents', 'consequents', 'support', 'confidence', 'lift', 'ROR']])
+def print_ddi_analysis_results(aki_cases, ddi_potential, association_rules, drug_of_interest):
+    # Print the number of AKI cases
+    print(f"Number of AKI cases: {aki_cases}")
+    
+    # Print the DDI potential (ROR)
+    print(f"DDI potential: {ddi_potential:.2f} (ROR values) {ddi_potential:.2f} fold increase in AKI risk.")
+    
+    # Calculate DDI index and print
+    print("DDI index:")
+    ddi_index_list = []
+    for _, rule in association_rules.iterrows():
+        # Ensure that the rule is for the drug of interest and that AKI is a consequent
+        if drug_of_interest in rule['antecedents']:
+            # Calculate the DDI index as per the lift value
+            ddi_index = rule['lift']
+            # Extract other drugs in the rule
+            other_drugs = rule['antecedents'] - set([drug_of_interest])
+            # Append to the list including the drug names and their DDI index
+            ddi_index_list.append((other_drugs, ddi_index))
+    
+    # Sort the list by DDI index in descending order and print
+    ddi_index_list.sort(key=lambda x: x[1], reverse=True)
+    for drugs, ddi_index in ddi_index_list:
+        drug_names = ''.join(drugs)
+        print(f"{drug_names}, {ddi_index:.2f}")
 
-# Assuming `aki_rules` is a DataFrame with the relevant rules
-# and it contains columns for 'antecedents', 'consequents', and 'lift'
+# Main function to orchestrate the DDI analysis
+def run_analysis(drug_name):
+    print("Loading saved adverse effect data...")
+    # Load saved data
+    data = load_data(constants.DATA_FILENAME)
+    
+    if data:
+        # Prepare the transactions for mining
+        print("Preprocessing data for mining...")
+        transactions_with_aki, transactions_without_aki = create_transactions(data, drug_name)
+        
+        # Calculate Rate of Return
+        print("Calculating ROR...")
+        aki_cases = len(transactions_with_aki)
+        non_aki_cases = len(transactions_without_aki)
+        print(f"Number of AKI cases for {drug_name}: {aki_cases}, Number of non-AKI cases for {drug_name}: {non_aki_cases}")
+        ddi_potential = calculate_ror(aki_cases, non_aki_cases)
+        
+        print("Mining association rules...")
+        association_rules_with_aki = association_rule_mining(transactions_with_aki)
+        association_rules_without_aki = association_rule_mining(transactions_without_aki)
 
-# Find the rule for Drug A -> AKI
-rule_drug_a = rules[(rules['antecedents'] == {drug}) & (rules['consequents'] == {'AKI'})]
-print(rule_drug_a)
-lift_drug_a = rule_drug_a['lift'].values[0]  # Get the lift value
+        ddi_index = extract_ddi_index(association_rules_with_aki)
 
-# Initialize a dictionary to store DDI indices
-ddi_indices = {}
+        # Print results
+        print_ddi_analysis_results(aki_cases, ddi_potential, association_rules_with_aki, constants.DRUG_OF_INTEREST)
+        
+        return {
+            'drug_name': drug_name,
+            'aki_cases': aki_cases,
+            'non_aki_cases': non_aki_cases,
+            'ddi_potential': ddi_potential,
+            'ddi_index': ddi_index
+        }
+    else:
+        return {
+            'drug_name': drug_name,
+            'aki_cases': None,
+            'non_aki_cases': None,
+            'ror': None,
+            'ddi_index': None
+        }
 
-# Iterate over the rules to find combinations of Drug A with other drugs
-for index, rule in aki_rules_sorted.iterrows():
-    if drug in rule['antecedents'] and len(rule['antecedents']) > 1:
-        # Calculate the DDI index
-        lift_combination = rule['lift']
-        ddi_index = lift_combination / lift_drug_a
-        # Store the DDI index with the drug combination as key
-        ddi_indices[frozenset(rule['antecedents'])] = ddi_index
-
-# The total number of reports with AKI
-aki_reports_count = sum(1 for transaction in transactions if 'AKI' in transaction)
-
-# Now `ddi_indices` contains the DDI index for each drug combination with Drug A
-for index in ddi_indices.items():
-    print(index)
-
-print(f"Number of AKI cases: {aki_reports_count}")
+if __name__ == "__main__":
+    fetch_data()
+    ddi_analysis = run_analysis(constants.DRUG_OF_INTEREST)
