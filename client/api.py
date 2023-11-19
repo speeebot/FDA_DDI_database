@@ -191,7 +191,7 @@ def calculate_ror():
     #print(a_count, b_count, c_count, d_count)
 
     # Calculate ROR
-    ror = (a_count * d_count) / (b_count * c_count)
+    ror = (c_count / a_count) / (d_count / b_count)
     return ror
 
 def print_ddi_analysis_results(aki_cases, ddi_potential, association_rules, drug_of_interest):
