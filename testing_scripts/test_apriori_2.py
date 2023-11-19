@@ -1,13 +1,16 @@
 import numpy as np 
 import pandas as pd 
+import os
 from mlxtend.frequent_patterns import apriori, association_rules 
 from mlxtend.preprocessing import TransactionEncoder
+
+os.chdir(os.path.dirname(os.getcwd()))
 
 # Attempt #1 to use apriori algorithm on hardcoded data and get results
 
 # Loading the Data 
 # The data should be filtered to already have AKI in the results
-data = pd.read_excel('../test_data/test_data_bigger.xlsx') 
+data = pd.read_excel('FDA_DDI_database/test_data/test_data_bigger.xlsx') 
 data.head() 
 target_drug = "Viread"
 # Print out some information on the original data
