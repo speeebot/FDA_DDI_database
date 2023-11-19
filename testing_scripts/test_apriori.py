@@ -33,9 +33,9 @@ te = TransactionEncoder()
 te_ary = te.fit(data['Suspect Product Names']).transform(data['Suspect Product Names'])
 df_apriori = pd.DataFrame(te_ary, columns=te.columns_)
 # This prints out the table neatly showing True/False for every row in the original table, and the drugs
-# print(df_apriori)
+print(df_apriori)
 
-frequent_itemsets = apriori(df_apriori, min_support=0.0001, use_colnames=True)
+frequent_itemsets = apriori(df_apriori, min_support=0.00001, use_colnames=True)
 # Collecting the inferred rules in a dataframe 
 rules = association_rules(frequent_itemsets, metric ="lift", min_threshold = 1) 
 rules = rules.sort_values(['confidence', 'lift'], ascending =[False, False]) 
@@ -47,3 +47,5 @@ rules = rules.sort_values(['confidence', 'lift'], ascending =[False, False])
 # Filter based on user-input
 rules_filter = rules[rules['antecedents'].apply(lambda x: 'Aggrenox' in x)]
 print(rules_filter)
+
+# TODO: something is wrong since the lift values are wack
