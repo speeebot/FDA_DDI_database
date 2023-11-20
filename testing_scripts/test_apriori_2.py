@@ -85,19 +85,32 @@ rules = association_rules(frequent_itemsets, metric ="lift", min_threshold = 1)
 rules = rules.sort_values(['lift'], ascending =[False]) 
 
 # Print all association rules
+# print(rules) 
 
-print(rules) 
-
+# Filtered rules contain those with SYMPTOM=1
 filtered_rules = rules[(rules['consequents'] == {(constants.SYMPTOM)})]
-print(filtered_rules)
+# print(filtered_rules)
 
-drug_of_interest_lift = filtered_rules[(filtered_rules['antecedents'] == {(constants.DRUG_OF_INTEREST)})]
-print(drug_of_interest_lift)
+drug_of_interest = filtered_rules[(filtered_rules['antecedents'] == {(constants.DRUG_OF_INTEREST)})]
+if not drug_of_interest.empty:
+    print("No correlation.")
+    drug_of_interest = 1 # ONLY FOR TESTING PURPOSES
+else:
+    drug_of_interest_lift = drug_of_interest['lift']
 
-correlated_drug_rules = []
-for rule in filtered_rules:
-    print(filtered_rules['antecedents'])
-    if constants.DRUG_OF_INTEREST in filtered_rules['antecedents'] and len(filtered_rules['antecedents']) ==2:
-        correlated_drug_rules.append(rule)
-print(correlated_drug_rules)
+# calculate DDI indexes
+correlated_drug_rules = filtered_rules[(filtered_rules['antecedents'].apply(lambda x: constants.DRUG_OF_INTEREST in x)) & 
+                        (filtered_rules['antecedents'].apply(lambda x: len(x) == 2))]
 
+lift_antecedent_pairs = []
+
+for index, row in correlated_drug_rules.iterrows():
+    lift_value = row['lift']
+    antecedent_values = row['antecedents']
+    antecedent_value = None
+    for val in antecedent_values:
+        if val != constants.DRUG_OF_INTEREST:
+            antecedent_value = val
+    
+    # These are the values to display
+    print(lift_value/drug_of_interest_lift, antecedent_value)
