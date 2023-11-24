@@ -27,15 +27,16 @@ def create_transactions(data, drug_of_interest):
 
     return transactions_with_aki, transactions_without_aki
 # Function to apply the association rule mining
-def association_rule_mining(transactions):
+def association_rule_mining(transactions, min_support):
     
+    print(f'min support: {min_support}')
     # Initialize the TransactionEncoder
     te = TransactionEncoder()
     te_ary = te.fit(transactions).transform(transactions)
     df = pd.DataFrame(te_ary, columns=te.columns_)
 
     # Apply the Apriori algorithm to get frequent itemsets
-    frequent_itemsets = apriori(df, min_support=0.01, use_colnames=True)
+    frequent_itemsets = apriori(df, min_support=float(min_support), use_colnames=True)
 
     print("DEBUG Frequent itemsets:", frequent_itemsets.head())
 
@@ -131,10 +132,10 @@ def print_ddi_analysis_results(aki_cases, ddi_potential, association_rules, drug
         print(f"{drug_names}, {ddi_index:.2f}")
 
 # Main function to orchestrate the DDI analysis
-def run_analysis(drug_name, symptom):
+def run_analysis(drug_name, symptom, min_support):
     print("Loading saved adverse effect data...")
     # Load saved data
-    print(os.getcwd())
+    # print(os.getcwd())
     print(constants.DATA_FILENAME)
     data = load_data(constants.DATA_FILENAME)
     
@@ -151,7 +152,7 @@ def run_analysis(drug_name, symptom):
         ddi_potential = calculate_ror(drug_name, symptom)
         
         print("Mining association rules...")
-        association_rules_with_aki = association_rule_mining(transactions_with_aki)
+        association_rules_with_aki = association_rule_mining(transactions_with_aki, min_support)
         # Do not need these for analysis, only need counts
         #association_rules_without_aki = association_rule_mining(transactions_without_aki)
 
@@ -175,9 +176,13 @@ def run_analysis(drug_name, symptom):
             'ddi_index': None
         }
 
-def filter_data(drug_of_interest: str, symptom: str):
+def filter_data(drug_of_interest: str, symptom: str, min_support: float):
     try:
-        ddi_analysis = run_analysis(drug_of_interest, symptom) 
+        ddi_analysis = run_analysis(drug_of_interest, symptom, min_support) 
+
+        print("ddi_analysis :\n")
+        print(ddi_analysis.keys())
+
         filtered_data = []
         seen_combinations = set()
 
@@ -194,11 +199,11 @@ def filter_data(drug_of_interest: str, symptom: str):
     except:
         return []
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 
-#     drug_of_interest = "Vancomycin"
-#     symptom = "acute kidney injury"
-#     print(filter_data(drug_of_interest, symptom))
+    drug_of_interest = "Vancomycin"
+    symptom = "acute kidney injury"
+    print(filter_data(drug_of_interest, symptom))
 #     ddi_analysis = run_analysis(drug_of_interest, symptom) 
 
 #     # Create a new list to store filtered data
