@@ -8,3 +8,6 @@ We will then employ an association rule algorithm to compare the risk of experie
 The final output will be the DDI index, which is defined as the ratio of the lift value of an association rule {Drug A combinations -> side effect} to the lift value of another association rule {Drug A -> Side effect}. Higher DDI index values indicate a higher likelihood of potential drug-drug interactions.
 
 By utilizing these steps, we aim to develop a reliable tool for identifying potential drug-drug interactions from the FAERS database that can help healthcare professionals make informed decisions about medication therapy and ultimately improve patient safety.
+
+TO RUN THE WEBSITE:
+Cd into client, and run py app.py. Navigate to local host/browser.
