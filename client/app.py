@@ -1,5 +1,6 @@
 from flask import Flask, render_template, url_for, request, redirect, session, flash
 import openFDA as api
+import requests
 import signal
 
 app = Flask(__name__)
@@ -28,17 +29,13 @@ def handler(signum, frame):
     raise Exception("Function has run for too long")
 
 
-
-
 @app.route('/results', methods=['POST', 'GET'])     # results root
 def results_page():
-    try:
-        ddi_results = api.filter_data(session["drug_input"], session["reaction_input"], session["support_input"])
-        return render_template('results.html', ddi_results = ddi_results)
-    except:
-            flash('Try a different minimum support', 'danger')
-            return redirect(url_for('home_page'))
 
+    drug_of_interest, ddi_potential, ddi_index = api.run_analysis(session["drug_input"], session["reaction_input"], session["support_input"])
+
+    return render_template('results.html', 
+                            drug_of_interest = drug_of_interest, ddi_potential = ddi_potential, ddi_index = ddi_index)
 
 
 if __name__ == '__main__':
